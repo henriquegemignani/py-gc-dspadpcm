@@ -1,0 +1,14 @@
+# Rust
+/target/
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyd
+*.so
+*.egg-info/
+dist/
+.venv/
+
+# maturin / build artifacts
+wheels/
