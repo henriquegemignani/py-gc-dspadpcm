@@ -1,9 +1,9 @@
 use crate::codec::{self, Coefs};
 
 // ── Layout constants (Dread-compatible) ──────────────────────────────────────
-const BLOCK_SIZE: u32 = 0x2000;         // 8 192 bytes per block
+const BLOCK_SIZE: u32 = 0x2000; // 8 192 bytes per block
 const BLOCK_SAMPLE_COUNT: u32 = 0x3800; // 14 336 samples per block
-const SEEK_INTERVAL: u32 = 0x3800;      // one seek entry per block
+const SEEK_INTERVAL: u32 = 0x3800; // one seek entry per block
 const ADPCM_CODEC: u8 = 2;
 
 // Reference-type constants used inside the INFO section
@@ -107,16 +107,16 @@ fn build_info_section(
     push_u8(&mut sec, 0); // region_count
 
     push_u32(&mut sec, sample_rate);
-    push_u32(&mut sec, 0);                // loop_start
+    push_u32(&mut sec, 0); // loop_start
     push_u32(&mut sec, sample_count);
-    push_u32(&mut sec, block_count);      // interleave_count
-    push_u32(&mut sec, BLOCK_SIZE);       // interleave_size
+    push_u32(&mut sec, block_count); // interleave_count
+    push_u32(&mut sec, BLOCK_SIZE); // interleave_size
     push_u32(&mut sec, BLOCK_SAMPLE_COUNT); // samples_per_interleave
     push_u32(&mut sec, last_block_size_raw);
     push_u32(&mut sec, last_block_sample_count);
     push_u32(&mut sec, last_block_padded_size);
-    push_u32(&mut sec, 4);                // bytes_per_seek_entry
-    push_u32(&mut sec, SEEK_INTERVAL);    // samples_per_seek_entry
+    push_u32(&mut sec, 4); // bytes_per_seek_entry
+    push_u32(&mut sec, SEEK_INTERVAL); // samples_per_seek_entry
 
     // SampleData reference — offset 0x18 from DATA section body start
     push_block_ref(&mut sec, RT_SAMPLE_DATA, 0x18);
@@ -173,7 +173,11 @@ pub fn build_bfstm(samples: &[i16], sample_rate: u32) -> Vec<u8> {
         0
     } else {
         let r = sample_count % BLOCK_SAMPLE_COUNT;
-        if r == 0 { BLOCK_SAMPLE_COUNT } else { r }
+        if r == 0 {
+            BLOCK_SAMPLE_COUNT
+        } else {
+            r
+        }
     };
     let last_block_frames = (last_block_sample_count + 13) / 14;
     let last_block_size_raw = last_block_frames * 8;
@@ -201,14 +205,21 @@ pub fn build_bfstm(samples: &[i16], sample_rate: u32) -> Vec<u8> {
         }
     }
 
-    let pred_scale0 = if adpcm_frames.is_empty() { 0 } else { adpcm_frames[0] as i16 };
+    let pred_scale0 = if adpcm_frames.is_empty() {
+        0
+    } else {
+        adpcm_frames[0] as i16
+    };
 
     // ── Seek entries ──────────────────────────────────────────────────────────
     // entry[0] = all zeros (state before block 0)
     // entry[i] = (pred_scale of block i's first frame, hist1 at end of block i-1)
     let mut seek_entries: Vec<(i16, i16)> = vec![(0, 0)];
     for i in 1..(block_count as usize) {
-        let pred_scale = adpcm_frames.get(i * frames_per_block * 8).copied().unwrap_or(0) as i16;
+        let pred_scale = adpcm_frames
+            .get(i * frames_per_block * 8)
+            .copied()
+            .unwrap_or(0) as i16;
         let hist1 = block_end_hist1.get(i - 1).copied().unwrap_or(0);
         seek_entries.push((pred_scale, hist1));
     }

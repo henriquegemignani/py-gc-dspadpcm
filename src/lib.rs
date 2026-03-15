@@ -1,5 +1,5 @@
-pub mod codec;
 pub mod bfstm;
+pub mod codec;
 
 use pyo3::prelude::*;
 use pyo3::types::PyBytes;
@@ -62,13 +62,19 @@ fn parse_wav(data: &[u8]) -> PyResult<(u32, &[u8])> {
     }
 
     if data.len() < 12 {
-        return Err(pyo3::exceptions::PyValueError::new_err("Not a valid WAV file"));
+        return Err(pyo3::exceptions::PyValueError::new_err(
+            "Not a valid WAV file",
+        ));
     }
     if &data[0..4] != b"RIFF" {
-        return Err(pyo3::exceptions::PyValueError::new_err("Not a valid RIFF file"));
+        return Err(pyo3::exceptions::PyValueError::new_err(
+            "Not a valid RIFF file",
+        ));
     }
     if &data[8..12] != b"WAVE" {
-        return Err(pyo3::exceptions::PyValueError::new_err("Not a valid WAVE file"));
+        return Err(pyo3::exceptions::PyValueError::new_err(
+            "Not a valid WAVE file",
+        ));
     }
 
     let mut pos = 12usize;
@@ -82,7 +88,9 @@ fn parse_wav(data: &[u8]) -> PyResult<(u32, &[u8])> {
 
         if tag == b"fmt " {
             if chunk_size < 16 {
-                return Err(pyo3::exceptions::PyValueError::new_err("fmt chunk too small"));
+                return Err(pyo3::exceptions::PyValueError::new_err(
+                    "fmt chunk too small",
+                ));
             }
             let format = read_u16(data, pos)?;
             if format != 1 {
@@ -112,7 +120,9 @@ fn parse_wav(data: &[u8]) -> PyResult<(u32, &[u8])> {
             }
             let end = pos + chunk_size;
             if end > data.len() {
-                return Err(pyo3::exceptions::PyValueError::new_err("WAV data truncated"));
+                return Err(pyo3::exceptions::PyValueError::new_err(
+                    "WAV data truncated",
+                ));
             }
             return Ok((sample_rate, &data[pos..end]));
         }

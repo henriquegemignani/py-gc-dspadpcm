@@ -11,8 +11,7 @@ fn make_sine(freq: f64, duration: f64, sample_rate: u32) -> Vec<i16> {
     let n = (sample_rate as f64 * duration) as usize;
     (0..n)
         .map(|i| {
-            (32767.0
-                * (2.0 * std::f64::consts::PI * freq * i as f64 / sample_rate as f64).sin())
+            (32767.0 * (2.0 * std::f64::consts::PI * freq * i as f64 / sample_rate as f64).sin())
                 as i16
         })
         .collect()
@@ -49,7 +48,11 @@ fn sections_are_0x20_aligned() {
     // Offsets: INFO=0x18, SEEK=0x24, DATA=0x30
     for slot in 0..3usize {
         let offset = read_u32_le(&bfstm, 0x18 + slot * 0x0C) as usize;
-        assert_eq!(offset % 0x20, 0, "section {slot} offset {offset:#x} not aligned");
+        assert_eq!(
+            offset % 0x20,
+            0,
+            "section {slot} offset {offset:#x} not aligned"
+        );
     }
 }
 

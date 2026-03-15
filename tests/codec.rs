@@ -19,7 +19,10 @@ fn correlate_coefs_sine_in_range() {
         .collect();
     let coefs = correlate_coefs(&samples);
     // All coefficient values must fit in i16 (checked by type), and first pair must be non-zero
-    assert!(coefs[0][0] != 0 || coefs[0][1] != 0, "first coef pair should be non-zero for sine");
+    assert!(
+        coefs[0][0] != 0 || coefs[0][1] != 0,
+        "first coef pair should be non-zero for sine"
+    );
 }
 
 #[test]

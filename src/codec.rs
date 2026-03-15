@@ -94,8 +94,12 @@ fn analyze_ranges(mtx: &mut [TVec; 3], vec_idxs_out: &mut [usize; 3]) -> bool {
     let mut max = 0.0f64;
     for i in 1..=2usize {
         let tmp = mtx[i][i].abs();
-        if tmp < min { min = tmp; }
-        if tmp > max { max = tmp; }
+        if tmp < min {
+            min = tmp;
+        }
+        if tmp > max {
+            max = tmp;
+        }
     }
 
     if min / max < 1.0e-10 {
@@ -346,16 +350,32 @@ pub fn correlate_coefs(samples: &[i16]) -> Coefs {
     for z in 0..8usize {
         let d0 = -vec_best[z][1] * 2048.0;
         coefs[z][0] = if d0 > 0.0 {
-            if d0 > 32767.0 { 32767 } else { d0.round() as i16 }
+            if d0 > 32767.0 {
+                32767
+            } else {
+                d0.round() as i16
+            }
         } else {
-            if d0 < -32768.0 { -32768 } else { d0.round() as i16 }
+            if d0 < -32768.0 {
+                -32768
+            } else {
+                d0.round() as i16
+            }
         };
 
         let d1 = -vec_best[z][2] * 2048.0;
         coefs[z][1] = if d1 > 0.0 {
-            if d1 > 32767.0 { 32767 } else { d1.round() as i16 }
+            if d1 > 32767.0 {
+                32767
+            } else {
+                d1.round() as i16
+            }
         } else {
-            if d1 < -32768.0 { -32768 } else { d1.round() as i16 }
+            if d1 < -32768.0 {
+                -32768
+            } else {
+                d1.round() as i16
+            }
         };
     }
     coefs
@@ -478,9 +498,8 @@ pub fn encode_frame(pcm_inout: &mut [i16; 16], sample_count: usize, coefs: &Coef
     }
 
     for y in 0..7usize {
-        adpcm_out[y + 1] =
-            ((out_samples[best_index][y * 2] << 4) | (out_samples[best_index][y * 2 + 1] & 0xF))
-                as u8;
+        adpcm_out[y + 1] = ((out_samples[best_index][y * 2] << 4)
+            | (out_samples[best_index][y * 2 + 1] & 0xF)) as u8;
     }
 
     adpcm_out
