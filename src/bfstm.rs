@@ -43,9 +43,9 @@ fn align_to(buf: &mut Vec<u8>, alignment: usize) {
     }
 }
 fn round_up(v: u32, align: u32) -> u32 {
-    (v + align - 1) / align * align
+    v.div_ceil(align) * align
 }
-fn patch_u32(buf: &mut Vec<u8>, offset: usize, v: u32) {
+fn patch_u32(buf: &mut [u8], offset: usize, v: u32) {
     buf[offset..offset + 4].copy_from_slice(&v.to_le_bytes());
 }
 
@@ -74,16 +74,28 @@ fn push_null_ref(buf: &mut Vec<u8>) {
 
 // ── INFO section builder ─────────────────────────────────────────────────────
 
-fn build_info_section(
+struct InfoParams<'a> {
     sample_count: u32,
     sample_rate: u32,
     block_count: u32,
     last_block_sample_count: u32,
     last_block_size_raw: u32,
     last_block_padded_size: u32,
-    coefs: &Coefs,
+    coefs: &'a Coefs,
     pred_scale0: i16,
-) -> Vec<u8> {
+}
+
+fn build_info_section(p: InfoParams<'_>) -> Vec<u8> {
+    let InfoParams {
+        sample_count,
+        sample_rate,
+        block_count,
+        last_block_sample_count,
+        last_block_size_raw,
+        last_block_padded_size,
+        coefs,
+        pred_scale0,
+    } = p;
     let mut sec = Vec::new();
 
     // Section header placeholder (magic + size filled later)
@@ -165,7 +177,7 @@ fn build_info_section(
 /// Build a complete, valid BFSTM file from raw mono 16-bit PCM samples.
 pub fn build_bfstm(samples: &[i16], sample_rate: u32) -> Vec<u8> {
     let sample_count = samples.len() as u32;
-    let packet_count = ((sample_count + 13) / 14) as usize;
+    let packet_count = sample_count.div_ceil(14) as usize;
     let block_count = sample_count.div_ceil(BLOCK_SAMPLE_COUNT).max(1);
     let frames_per_block = (BLOCK_SAMPLE_COUNT / 14) as usize; // = 1024
 
@@ -179,7 +191,7 @@ pub fn build_bfstm(samples: &[i16], sample_rate: u32) -> Vec<u8> {
             r
         }
     };
-    let last_block_frames = (last_block_sample_count + 13) / 14;
+    let last_block_frames = last_block_sample_count.div_ceil(14);
     let last_block_size_raw = last_block_frames * 8;
     let last_block_padded_size = round_up(last_block_size_raw, 0x20);
 
@@ -227,16 +239,16 @@ pub fn build_bfstm(samples: &[i16], sample_rate: u32) -> Vec<u8> {
     // ── Section sizes ─────────────────────────────────────────────────────────
     let header_size: u32 = 0x40;
 
-    let info_section = build_info_section(
+    let info_section = build_info_section(InfoParams {
         sample_count,
         sample_rate,
         block_count,
         last_block_sample_count,
         last_block_size_raw,
         last_block_padded_size,
-        &coefs,
+        coefs: &coefs,
         pred_scale0,
-    );
+    });
     let info_size = info_section.len() as u32;
 
     let seek_payload_bytes = (seek_entries.len() as u32) * 4; // 4 bytes per entry (mono)

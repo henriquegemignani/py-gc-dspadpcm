@@ -14,7 +14,7 @@ use pyo3::types::PyBytes;
 ///     Bytes of a complete BFSTM file.
 #[pyfunction]
 fn encode_pcm(py: Python<'_>, pcm_data: &[u8], sample_rate: u32) -> PyResult<Py<PyBytes>> {
-    if pcm_data.len() % 2 != 0 {
+    if !pcm_data.len().is_multiple_of(2) {
         return Err(pyo3::exceptions::PyValueError::new_err(
             "pcm_data length must be a multiple of 2 (16-bit samples)",
         ));
@@ -24,7 +24,7 @@ fn encode_pcm(py: Python<'_>, pcm_data: &[u8], sample_rate: u32) -> PyResult<Py<
         .map(|c| i16::from_le_bytes([c[0], c[1]]))
         .collect();
     let bfstm = bfstm::build_bfstm(&samples, sample_rate);
-    Ok(PyBytes::new_bound(py, &bfstm).into())
+    Ok(PyBytes::new(py, &bfstm).into())
 }
 
 /// Parse a minimal PCM WAV file (mono, 16-bit, any sample rate) and encode to BFSTM.
@@ -45,7 +45,7 @@ fn encode_wav(py: Python<'_>, wav_data: &[u8]) -> PyResult<Py<PyBytes>> {
         .map(|c| i16::from_le_bytes([c[0], c[1]]))
         .collect();
     let bfstm = bfstm::build_bfstm(&samples, sample_rate);
-    Ok(PyBytes::new_bound(py, &bfstm).into())
+    Ok(PyBytes::new(py, &bfstm).into())
 }
 
 /// Minimal WAV parser.  Returns (sample_rate, pcm_bytes_slice).
@@ -129,7 +129,7 @@ fn parse_wav(data: &[u8]) -> PyResult<(u32, &[u8])> {
 
         pos += chunk_size;
         // Chunks are word-aligned
-        if chunk_size % 2 != 0 {
+        if !chunk_size.is_multiple_of(2) {
             pos += 1;
         }
     }

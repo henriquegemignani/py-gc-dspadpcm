@@ -1,5 +1,6 @@
-/// Direct port of grok.c (DSP-ADPCM codec by jackoalan, MIT licence).
-/// All integer arithmetic and floating-point operations match the original.
+//! Direct port of grok.c (DSP-ADPCM codec by jackoalan, MIT licence).
+//! All integer arithmetic and floating-point operations match the original.
+#![allow(clippy::needless_range_loop)]
 
 type TVec = [f64; 3];
 type CoefPair = [i16; 2];
@@ -261,7 +262,7 @@ pub fn correlate_coefs(samples: &[i16]) -> Coefs {
         return [[0i16; 2]; 8];
     }
 
-    let num_frames = (samples.len() + 13) / 14;
+    let num_frames = samples.len().div_ceil(14);
     let mut records: Vec<TVec> = Vec::with_capacity(num_frames * 2);
 
     // Flat [prev 14 | curr 14] history buffer, mirroring pcmHistBuffer[2][14].
@@ -349,33 +350,21 @@ pub fn correlate_coefs(samples: &[i16]) -> Coefs {
     let mut coefs: Coefs = [[0i16; 2]; 8];
     for z in 0..8usize {
         let d0 = -vec_best[z][1] * 2048.0;
-        coefs[z][0] = if d0 > 0.0 {
-            if d0 > 32767.0 {
-                32767
-            } else {
-                d0.round() as i16
-            }
+        coefs[z][0] = if d0 > 32767.0 {
+            32767
+        } else if d0 < -32768.0 {
+            -32768
         } else {
-            if d0 < -32768.0 {
-                -32768
-            } else {
-                d0.round() as i16
-            }
+            d0.round() as i16
         };
 
         let d1 = -vec_best[z][2] * 2048.0;
-        coefs[z][1] = if d1 > 0.0 {
-            if d1 > 32767.0 {
-                32767
-            } else {
-                d1.round() as i16
-            }
+        coefs[z][1] = if d1 > 32767.0 {
+            32767
+        } else if d1 < -32768.0 {
+            -32768
         } else {
-            if d1 < -32768.0 {
-                -32768
-            } else {
-                d1.round() as i16
-            }
+            d1.round() as i16
         };
     }
     coefs
@@ -413,7 +402,7 @@ pub fn encode_frame(pcm_inout: &mut [i16; 16], sample_count: usize, coefs: &Coef
         // Initial scale estimation
         let mut temp_scale = 0i32;
         let mut temp_dist = distance;
-        while temp_scale <= 12 && (temp_dist > 7 || temp_dist < -8) {
+        while temp_scale <= 12 && !(-8..=7).contains(&temp_dist) {
             temp_scale += 1;
             temp_dist /= 2;
         }
@@ -510,7 +499,7 @@ pub fn encode_all(samples: &[i16]) -> (Coefs, Vec<u8>) {
     let coefs = correlate_coefs(samples);
     let mut adpcm_frames: Vec<u8> = Vec::new();
     let mut conv_samps = [0i16; 16];
-    let packet_count = (samples.len() + 13) / 14;
+    let packet_count = samples.len().div_ceil(14);
 
     for p in 0..packet_count {
         let num_samples = (samples.len() - p * 14).min(14);
