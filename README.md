@@ -68,3 +68,7 @@ tests/
 ## License
 
 MIT
+
+# Disclaimer
+
+This project has been created using Claude Code.

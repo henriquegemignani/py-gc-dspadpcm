@@ -39,6 +39,11 @@ jobs:
       - name: uv sync
         run: uv sync --locked --all-extras --all-groups
 
+      - name: Build reference binary
+        run: |
+          cmake -S tests/reference -B tests/reference/build -DCMAKE_BUILD_TYPE=Release
+          cmake --build tests/reference/build --config Release
+
       - name: pytest
         run: uv run pytest
 

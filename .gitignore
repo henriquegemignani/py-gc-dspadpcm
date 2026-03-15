@@ -12,3 +12,6 @@ dist/
 
 # maturin / build artifacts
 wheels/
+
+# reference binary build output
+tests/reference/build/
