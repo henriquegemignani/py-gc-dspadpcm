@@ -19,6 +19,7 @@ BFSTM ADPCM data extraction:
 
 import math
 import os
+import pathlib
 import struct
 import subprocess  # used in encode_ref
 import wave
@@ -86,7 +87,7 @@ def ref_bin():
     )
 
 
-def encode_ref(bin_path: str, wav: bytes, tmp_path) -> bytes:
+def encode_ref(bin_path: str, wav: bytes, tmp_path: pathlib.Path) -> bytes:
     wav_p = tmp_path / "in.wav"
     dsp_p = tmp_path / "out.dsp"
     wav_p.write_bytes(wav)
@@ -109,10 +110,10 @@ class TestReferenceParity:
     """
 
     @pytest.fixture(autouse=True)
-    def _tmp(self, tmp_path):
+    def _tmp(self, tmp_path: pathlib.Path) -> None:
         self.tmp = tmp_path
 
-    def _both(self, ref_bin, samples, sample_rate=22050):
+    def _both(self, ref_bin: str, samples: list[int], sample_rate: int = 22050) -> tuple[bytes, bytes]:
         wav = make_wav(samples, sample_rate)
         dsp = encode_ref(ref_bin, wav, self.tmp)
         bfstm = gc_dspadpcm.encode_wav(wav)

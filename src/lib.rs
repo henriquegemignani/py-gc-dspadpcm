@@ -130,7 +130,7 @@ fn parse_wav(data: &[u8]) -> PyResult<(u32, &[u8])> {
 }
 
 #[pymodule]
-fn gc_dspadpcm(m: &Bound<'_, PyModule>) -> PyResult<()> {
+fn _lib(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(encode_pcm, m)?)?;
     m.add_function(wrap_pyfunction!(encode_wav, m)?)?;
     Ok(())
