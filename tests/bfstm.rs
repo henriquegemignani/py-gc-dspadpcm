@@ -1,4 +1,4 @@
-use gc_dspadpcm::bfstm::build_bfstm;
+use gc_dspadpcm::bfstm::{build_bfstm, BfstmFormat};
 
 fn read_u16_le(data: &[u8], off: usize) -> u16 {
     u16::from_le_bytes([data[off], data[off + 1]])
@@ -20,7 +20,7 @@ fn make_sine(freq: f64, duration: f64, sample_rate: u32) -> Vec<i16> {
 #[test]
 fn magic_and_bom() {
     let samples = make_sine(440.0, 0.1, 22050);
-    let bfstm = build_bfstm(&samples, 22050);
+    let bfstm = build_bfstm(&samples, 22050, BfstmFormat::Switch);
     assert_eq!(&bfstm[0..4], b"FSTM");
     assert_eq!(&bfstm[4..6], &[0xFF, 0xFE]);
 }
@@ -28,7 +28,7 @@ fn magic_and_bom() {
 #[test]
 fn file_size_field_matches_actual_length() {
     let samples = make_sine(440.0, 0.5, 22050);
-    let bfstm = build_bfstm(&samples, 22050);
+    let bfstm = build_bfstm(&samples, 22050, BfstmFormat::Switch);
     let field = read_u32_le(&bfstm, 0x0C);
     assert_eq!(field as usize, bfstm.len());
 }
@@ -36,14 +36,14 @@ fn file_size_field_matches_actual_length() {
 #[test]
 fn section_count_is_three() {
     let samples = make_sine(440.0, 0.1, 22050);
-    let bfstm = build_bfstm(&samples, 22050);
+    let bfstm = build_bfstm(&samples, 22050, BfstmFormat::Switch);
     assert_eq!(read_u16_le(&bfstm, 0x10), 3);
 }
 
 #[test]
 fn sections_are_0x20_aligned() {
     let samples = make_sine(440.0, 0.5, 22050);
-    let bfstm = build_bfstm(&samples, 22050);
+    let bfstm = build_bfstm(&samples, 22050, BfstmFormat::Switch);
     // Each 12-byte section ref: u16 type, u16 pad, u32 offset, u32 size.
     // Offsets: INFO=0x18, SEEK=0x24, DATA=0x30
     for slot in 0..3usize {
@@ -60,7 +60,7 @@ fn sections_are_0x20_aligned() {
 fn data_section_magic_and_payload_size() {
     let samples = make_sine(440.0, 0.25, 22050);
     let n = samples.len();
-    let bfstm = build_bfstm(&samples, 22050);
+    let bfstm = build_bfstm(&samples, 22050, BfstmFormat::Switch);
 
     // DATA section offset is at 0x30 (third 12-byte ref's offset field: 0x2C+4=0x30)
     let data_off = read_u32_le(&bfstm, 0x30) as usize;
@@ -81,7 +81,7 @@ fn data_section_magic_and_payload_size() {
 #[test]
 fn silence_builds_without_panic() {
     let samples = vec![0i16; 22050];
-    let bfstm = build_bfstm(&samples, 22050);
+    let bfstm = build_bfstm(&samples, 22050, BfstmFormat::Switch);
     assert_eq!(&bfstm[0..4], b"FSTM");
 }
 
@@ -90,7 +90,7 @@ fn multi_block_has_correct_seek_entry_count() {
     // 3 blocks worth of samples
     let n = 3 * 0x3800usize;
     let samples: Vec<i16> = (0..n).map(|i| ((i % 256) as i16) * 100).collect();
-    let bfstm = build_bfstm(&samples, 22050);
+    let bfstm = build_bfstm(&samples, 22050, BfstmFormat::Switch);
 
     // SEEK section offset is at 0x24 (second 12-byte ref's offset field: 0x20+4=0x24)
     let seek_off = read_u32_le(&bfstm, 0x24) as usize;

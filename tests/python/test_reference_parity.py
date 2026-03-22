@@ -8,9 +8,14 @@ DSP file layout (reference output):
     offset  28 : 16 × big-endian int16 predictor coefficients
   bytes 96+    : raw ADPCM frames (8 bytes each for full 14-sample frames)
 
-BFSTM coef extraction:
-  info_off = u32LE @ 0x18
-  coefs    = 16 × s16LE @ info_off + 0x6C
+BFSTM coef extraction (Switch / v6.4.0 format):
+  info_off      = u32LE @ 0x18
+  ref_table     @ info_off + 0x08  (24 bytes, 3 entries)
+  StreamInfo    @ ref_table + 24   (80 bytes incl. 24-byte extended fields)
+  ChannelTable  @ ref_table + 104  = info_off + 0x70
+  ChannelInfo[0]@ ChannelTable + 12 = info_off + 0x7C
+  DspAdpcmInfo  @ ChannelInfo[0] + 8 = info_off + 0x84
+  coefs         = 16 × s16LE @ info_off + 0x84
 
 BFSTM ADPCM data extraction:
   data_off = u32LE @ 0x30
@@ -54,7 +59,7 @@ def ref_adpcm(dsp: bytes, n_full_frames: int) -> bytes:
 
 def bfstm_coefs(bfstm: bytes) -> list[int]:
     info_off = struct.unpack_from("<I", bfstm, 0x18)[0]
-    return list(struct.unpack_from("<16h", bfstm, info_off + 0x6C))
+    return list(struct.unpack_from("<16h", bfstm, info_off + 0x84))
 
 
 def bfstm_adpcm(bfstm: bytes, n_bytes: int) -> bytes:

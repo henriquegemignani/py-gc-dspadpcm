@@ -1,5 +1,17 @@
 use crate::codec::{self, Coefs};
 
+// ── Output format ─────────────────────────────────────────────────────────────
+
+/// Selects the BFSTM variant to produce.
+pub enum BfstmFormat {
+    /// Nintendo Switch (v6.4.0): little-endian, extended StreamInfo, gain=0x10.
+    /// Required for Metroid Dread and other late Switch titles.
+    Switch,
+    /// Legacy (v2.0.0): little-endian, no extended StreamInfo, gain=0.
+    /// Compatible with community tools (VGAudio, vgmstream) and older games.
+    Legacy,
+}
+
 // ── Layout constants (Dread-compatible) ──────────────────────────────────────
 const BLOCK_SIZE: u32 = 0x2000; // 8 192 bytes per block
 const BLOCK_SAMPLE_COUNT: u32 = 0x3800; // 14 336 samples per block
@@ -83,6 +95,7 @@ struct InfoParams<'a> {
     last_block_padded_size: u32,
     coefs: &'a Coefs,
     pred_scale0: i16,
+    format: &'a BfstmFormat,
 }
 
 fn build_info_section(p: InfoParams<'_>) -> Vec<u8> {
@@ -95,7 +108,14 @@ fn build_info_section(p: InfoParams<'_>) -> Vec<u8> {
         last_block_padded_size,
         coefs,
         pred_scale0,
+        format,
     } = p;
+    let is_switch = matches!(format, BfstmFormat::Switch);
+    // Switch adds 24 bytes of extended StreamInfo fields; legacy omits them.
+    let stream_info_size: u32 = if is_switch { 80 } else { 56 };
+    let channel_info_offset: u32 = 24 + stream_info_size;
+    let gain: i16 = if is_switch { 0x10 } else { 0 };
+
     let mut sec = Vec::new();
 
     // Section header placeholder (magic + size filled later)
@@ -108,8 +128,8 @@ fn build_info_section(p: InfoParams<'_>) -> Vec<u8> {
     push_block_ref(&mut sec, RT_STREAM_INFO, 24);
     // TrackInfo: null
     push_null_ref(&mut sec);
-    // ChannelInfo table: offset 24 (StreamInfo) + 56 (InfoBlock1) = 80
-    push_block_ref(&mut sec, RT_REF_TABLE, 80);
+    // ChannelInfo table: offset 24 + stream_info_size
+    push_block_ref(&mut sec, RT_REF_TABLE, channel_info_offset);
 
     // ── InfoBlock1: StreamInfo (56 = 0x38 bytes) ────────────────────────────
     // Byte breakdown: 4 (codec…) + 4*11 (int fields) + 8 (sample_data ref) = 56
@@ -133,6 +153,16 @@ fn build_info_section(p: InfoParams<'_>) -> Vec<u8> {
     // SampleData reference — offset 0x18 from DATA section body start
     push_block_ref(&mut sec, RT_SAMPLE_DATA, 0x18);
 
+    // Extended StreamInfo fields (Switch v6.4.0+ only)
+    if is_switch {
+        push_u32(&mut sec, 0x00000100); // constant
+        push_u32(&mut sec, 0);          // constant zero
+        push_u32(&mut sec, 0xFFFFFFFF); // original_loop_start = -1 (no loop)
+        push_u32(&mut sec, 0);          // constant zero
+        push_u32(&mut sec, sample_count); // original_loop_end
+        push_u32(&mut sec, 0);          // unknown
+    }
+
     // ── InfoBlock3: ChannelInfoTable (66 = 0x42 bytes) ──────────────────────
     //
     // Layout:
@@ -154,12 +184,13 @@ fn build_info_section(p: InfoParams<'_>) -> Vec<u8> {
         push_i16(&mut sec, pair[0]);
         push_i16(&mut sec, pair[1]);
     }
-    // StartContext: pred_scale, hist1=0, hist2=0
+    // StartContext: gain, pred_scale, hist1=0, hist2=0
+    push_i16(&mut sec, gain);
     push_i16(&mut sec, pred_scale0);
     push_i16(&mut sec, 0);
     push_i16(&mut sec, 0);
-    // LoopContext: all zero (not looping)
-    push_i16(&mut sec, 0);
+    // LoopContext: loopPs=gain (same constant), rest zero (not looping)
+    push_i16(&mut sec, gain); // loopPs
     push_i16(&mut sec, 0);
     push_i16(&mut sec, 0);
     // Padding
@@ -175,7 +206,7 @@ fn build_info_section(p: InfoParams<'_>) -> Vec<u8> {
 // ── Public function ──────────────────────────────────────────────────────────
 
 /// Build a complete, valid BFSTM file from raw mono 16-bit PCM samples.
-pub fn build_bfstm(samples: &[i16], sample_rate: u32) -> Vec<u8> {
+pub fn build_bfstm(samples: &[i16], sample_rate: u32, format: BfstmFormat) -> Vec<u8> {
     let sample_count = samples.len() as u32;
     let packet_count = sample_count.div_ceil(14) as usize;
     let block_count = sample_count.div_ceil(BLOCK_SAMPLE_COUNT).max(1);
@@ -248,6 +279,7 @@ pub fn build_bfstm(samples: &[i16], sample_rate: u32) -> Vec<u8> {
         last_block_padded_size,
         coefs: &coefs,
         pred_scale0,
+        format: &format,
     });
     let info_size = info_section.len() as u32;
 
@@ -267,10 +299,14 @@ pub fn build_bfstm(samples: &[i16], sample_rate: u32) -> Vec<u8> {
     let mut file: Vec<u8> = Vec::with_capacity(file_size as usize);
 
     // ── File header (0x40 bytes) ──────────────────────────────────────────────
+    let version = match format {
+        BfstmFormat::Switch => 0x00060400,
+        BfstmFormat::Legacy => 0x00020000,
+    };
     file.extend_from_slice(b"FSTM");
     push_u16(&mut file, 0xFEFF); // BOM (little-endian)
     push_u16(&mut file, 0x0040); // header size
-    push_u32(&mut file, 0x00040006); // version
+    push_u32(&mut file, version);
     push_u32(&mut file, file_size);
     push_u16(&mut file, 3); // section count
     push_u16(&mut file, 0); // padding

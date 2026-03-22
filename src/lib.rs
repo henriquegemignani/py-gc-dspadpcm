@@ -4,26 +4,42 @@ pub mod codec;
 use pyo3::prelude::*;
 use pyo3::types::PyBytes;
 
+fn parse_format(format: &str) -> PyResult<bfstm::BfstmFormat> {
+    match format {
+        "switch" => Ok(bfstm::BfstmFormat::Switch),
+        "legacy" => Ok(bfstm::BfstmFormat::Legacy),
+        other => Err(pyo3::exceptions::PyValueError::new_err(format!(
+            "Unknown format {:?}: expected \"switch\" or \"legacy\"",
+            other
+        ))),
+    }
+}
+
 /// Convert raw mono 16-bit little-endian PCM samples to a BFSTM file.
 ///
 /// Args:
 ///     pcm_data:    Raw bytes of i16 LE samples (mono).
 ///     sample_rate: Sample rate in Hz (e.g. 22050).
+///     format:      ``"switch"`` (default) for Nintendo Switch / Metroid Dread
+///                  (v6.4.0, extended StreamInfo, gain=0x10), or ``"legacy"``
+///                  for older tools / games (v2.0.0, no extended fields, gain=0).
 ///
 /// Returns:
 ///     Bytes of a complete BFSTM file.
 #[pyfunction]
-fn encode_pcm(py: Python<'_>, pcm_data: &[u8], sample_rate: u32) -> PyResult<Py<PyBytes>> {
+#[pyo3(signature = (pcm_data, sample_rate, format = "switch"))]
+fn encode_pcm(py: Python<'_>, pcm_data: &[u8], sample_rate: u32, format: &str) -> PyResult<Py<PyBytes>> {
     if !pcm_data.len().is_multiple_of(2) {
         return Err(pyo3::exceptions::PyValueError::new_err(
             "pcm_data length must be a multiple of 2 (16-bit samples)",
         ));
     }
+    let fmt = parse_format(format)?;
     let samples: Vec<i16> = pcm_data
         .chunks_exact(2)
         .map(|c| i16::from_le_bytes([c[0], c[1]]))
         .collect();
-    let bfstm = bfstm::build_bfstm(&samples, sample_rate);
+    let bfstm = bfstm::build_bfstm(&samples, sample_rate, fmt);
     Ok(PyBytes::new(py, &bfstm).into())
 }
 
@@ -34,17 +50,22 @@ fn encode_pcm(py: Python<'_>, pcm_data: &[u8], sample_rate: u32) -> PyResult<Py<
 ///
 /// Args:
 ///     wav_data: Bytes of a WAV file.
+///     format:   ``"switch"`` (default) for Nintendo Switch / Metroid Dread
+///               (v6.4.0, extended StreamInfo, gain=0x10), or ``"legacy"``
+///               for older tools / games (v2.0.0, no extended fields, gain=0).
 ///
 /// Returns:
 ///     Bytes of a complete BFSTM file.
 #[pyfunction]
-fn encode_wav(py: Python<'_>, wav_data: &[u8]) -> PyResult<Py<PyBytes>> {
+#[pyo3(signature = (wav_data, format = "switch"))]
+fn encode_wav(py: Python<'_>, wav_data: &[u8], format: &str) -> PyResult<Py<PyBytes>> {
+    let fmt = parse_format(format)?;
     let (sample_rate, pcm_bytes) = parse_wav(wav_data)?;
     let samples: Vec<i16> = pcm_bytes
         .chunks_exact(2)
         .map(|c| i16::from_le_bytes([c[0], c[1]]))
         .collect();
-    let bfstm = bfstm::build_bfstm(&samples, sample_rate);
+    let bfstm = bfstm::build_bfstm(&samples, sample_rate, fmt);
     Ok(PyBytes::new(py, &bfstm).into())
 }
 
