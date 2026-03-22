@@ -15,3 +15,4 @@ wheels/
 
 # reference binary build output
 tests/reference/build/
+python/gc_dspadpcm/gc_dspadpcm.pdb
