@@ -8,7 +8,8 @@
       "Bash(cargo test:*)",
       "Bash(taskkill:*)",
       "Bash(uv run:*)",
-      "Bash(uv:*)"
+      "Bash(uv:*)",
+      "Bash(xxd:*)"
     ]
   }
 }
