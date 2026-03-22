@@ -9,7 +9,8 @@
       "Bash(taskkill:*)",
       "Bash(uv run:*)",
       "Bash(uv:*)",
-      "Bash(xxd:*)"
+      "Bash(xxd:*)",
+      "Bash(sed:*)"
     ]
   }
 }
