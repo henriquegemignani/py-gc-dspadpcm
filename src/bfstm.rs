@@ -156,11 +156,11 @@ fn build_info_section(p: InfoParams<'_>) -> Vec<u8> {
     // Extended StreamInfo fields (Switch v6.4.0+ only)
     if is_switch {
         push_u32(&mut sec, 0x00000100); // constant
-        push_u32(&mut sec, 0);          // constant zero
+        push_u32(&mut sec, 0); // constant zero
         push_u32(&mut sec, 0xFFFFFFFF); // original_loop_start = -1 (no loop)
-        push_u32(&mut sec, 0);          // constant zero
+        push_u32(&mut sec, 0); // constant zero
         push_u32(&mut sec, sample_count); // original_loop_end
-        push_u32(&mut sec, 0);          // unknown
+        push_u32(&mut sec, 0); // unknown
     }
 
     // ── InfoBlock3: ChannelInfoTable (66 = 0x42 bytes) ──────────────────────

@@ -28,7 +28,12 @@ fn parse_format(format: &str) -> PyResult<bfstm::BfstmFormat> {
 ///     Bytes of a complete BFSTM file.
 #[pyfunction]
 #[pyo3(signature = (pcm_data, sample_rate, format = "switch"))]
-fn encode_pcm(py: Python<'_>, pcm_data: &[u8], sample_rate: u32, format: &str) -> PyResult<Py<PyBytes>> {
+fn encode_pcm(
+    py: Python<'_>,
+    pcm_data: &[u8],
+    sample_rate: u32,
+    format: &str,
+) -> PyResult<Py<PyBytes>> {
     if !pcm_data.len().is_multiple_of(2) {
         return Err(pyo3::exceptions::PyValueError::new_err(
             "pcm_data length must be a multiple of 2 (16-bit samples)",
